@@ -2,16 +2,42 @@ import uuid
 from datetime import datetime, timedelta
 from airflow import DAG
 from airflow.operators.python_operator import PythonOperator
+from airflow.hooks.postgres_hook import PostgresHook
 import json
 import time
 import csv
 import os
 from confluent_kafka import Producer
 import logging
+import psycopg2
 
 logging.basicConfig(level=logging.INFO,
                     format='%(asctime)s:%(funcName)s:%(levelname)s:%(message)s')
 logger = logging.getLogger("smart_meter_streaming")
+
+
+def log_pipeline_start(dag_id):
+    """Log the start of a pipeline run to the database."""
+    postgres_hook = PostgresHook(postgres_conn_id='postgres_default')
+    sql = "SELECT pipeline_ops.log_run_start(%s);"
+    return postgres_hook.get_first(sql, parameters=[dag_id])[0]
+
+
+def log_pipeline_complete(run_id, records_processed, status='SUCCESS', error_message=None):
+    """Log the completion of a pipeline run to the database."""
+    postgres_hook = PostgresHook(postgres_conn_id='postgres_default')
+    sql = """
+    SELECT pipeline_ops.log_run_complete(%s, CURRENT_TIMESTAMP, %s, %s, %s);
+    """
+    postgres_hook.run(sql, parameters=[run_id, records_processed, status, error_message])
+
+
+def check_data_completeness(run_id, expected_count, actual_count):
+    """Check data completeness and log the result."""
+    postgres_hook = PostgresHook(postgres_conn_id='postgres_default')
+    sql = "SELECT pipeline_ops.check_data_completeness(%s, %s, %s);"
+    return postgres_hook.get_first(sql, parameters=[run_id, expected_count, actual_count])[0]
+
 
 KAFKA_BOOTSTRAP_SERVERS = ['kafka_broker_1:19092',
                            'kafka_broker_2:19093', 'kafka_broker_3:19094']
@@ -154,9 +180,18 @@ def publish_to_kafka(producer, topic, data):
     producer.flush()
 
 
-def stream_smart_meter_data():
+def stream_smart_meter_data(**context):
     """Main function to stream enriched smart meter data to Kafka."""
     logger.info("Starting smart meter data streaming...")
+    
+    dag_id = context.get('dag').dag_id if context.get('dag') else 'smart_meter_streaming_pipeline'
+    run_id = None
+    
+    try:
+        run_id = log_pipeline_start(dag_id)
+        logger.info(f"Pipeline run started with run_id: {run_id}")
+    except Exception as e:
+        logger.warning(f"Could not log pipeline start: {e}")
     
     households = load_households_info()
     weather = load_weather_data()
@@ -164,6 +199,11 @@ def stream_smart_meter_data():
     
     if not readings:
         logger.error("No energy readings found. Exiting.")
+        if run_id:
+            try:
+                log_pipeline_complete(run_id, 0, 'FAILED', 'No energy readings found')
+            except Exception as e:
+                logger.warning(f"Could not log pipeline failure: {e}")
         return
     
     kafka_producer = configure_kafka()
@@ -172,21 +212,37 @@ def stream_smart_meter_data():
     total_readings = len(readings)
     messages_sent = 0
     
-    start_time = time.time()
-    while (time.time() - start_time) < STREAMING_DURATION:
-        reading = readings[reading_index % total_readings]
-        enriched_reading = enrich_reading(reading, households, weather)
+    try:
+        start_time = time.time()
+        while (time.time() - start_time) < STREAMING_DURATION:
+            reading = readings[reading_index % total_readings]
+            enriched_reading = enrich_reading(reading, households, weather)
+            
+            publish_to_kafka(kafka_producer, KAFKA_TOPIC, enriched_reading)
+            messages_sent += 1
+            
+            if messages_sent % 10 == 0:
+                logger.info(f"Sent {messages_sent} messages to Kafka")
+            
+            reading_index += 1
+            time.sleep(PAUSE_INTERVAL)
         
-        publish_to_kafka(kafka_producer, KAFKA_TOPIC, enriched_reading)
-        messages_sent += 1
+        logger.info(f"Streaming complete. Total messages sent: {messages_sent}")
         
-        if messages_sent % 10 == 0:
-            logger.info(f"Sent {messages_sent} messages to Kafka")
-        
-        reading_index += 1
-        time.sleep(PAUSE_INTERVAL)
-    
-    logger.info(f"Streaming complete. Total messages sent: {messages_sent}")
+        if run_id:
+            try:
+                log_pipeline_complete(run_id, messages_sent, 'SUCCESS')
+                check_data_completeness(run_id, STREAMING_DURATION // PAUSE_INTERVAL, messages_sent)
+            except Exception as e:
+                logger.warning(f"Could not log pipeline completion: {e}")
+    except Exception as e:
+        logger.error(f"Pipeline failed with error: {e}")
+        if run_id:
+            try:
+                log_pipeline_complete(run_id, messages_sent, 'FAILED', str(e))
+            except Exception as log_e:
+                logger.warning(f"Could not log pipeline failure: {log_e}")
+        raise
 
 
 if __name__ == "__main__":
@@ -212,6 +268,7 @@ with DAG(
     streaming_task = PythonOperator(
         task_id='stream_smart_meter_data',
         python_callable=stream_smart_meter_data,
+        provide_context=True,
         dag=dag
     )
 
