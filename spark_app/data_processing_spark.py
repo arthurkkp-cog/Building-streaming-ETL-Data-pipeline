@@ -1,11 +1,7 @@
 import logging
-import sys
-import traceback
 from pyspark.sql import SparkSession
 from pyspark.sql.functions import from_json, col
-from pyspark.sql.types import StructType, StructField, StringType, IntegerType, FloatType
-from pyspark import SparkConf, SparkContext
-from pyspark.sql.types import LongType, TimestampType, BinaryType
+from pyspark.sql.types import StructType, StructField, StringType, FloatType
 
 # Initialize logging
 logging.basicConfig(level=logging.INFO,
@@ -73,26 +69,18 @@ def get_streaming_dataframe(spark, brokers, topic):
 
 def transform_streaming_data(df):
     """
-    Transform the initial dataframe to get the final structure.
+    Transform the initial dataframe to get the final structure for London smart meter data.
 
     :param df: Initial dataframe with raw data.
-    :return: Transformed dataframe.
+    :return: Transformed dataframe with smart meter schema.
     """
     schema = StructType([
-        StructField("full_name", StringType(), False),
-        StructField("gender", StringType(), False),
-        StructField("age", StringType(), False),
-        StructField("address", StringType(), False),
-        StructField("city", StringType(), False),
-        StructField("email", StringType(), False),
-        StructField("phone", StringType(), False),
-        StructField("nation", StringType(), False),
-        StructField("username", StringType(), False),
-        StructField("registered_date", TimestampType(), False),
-        StructField("zip", LongType(), False),
-        StructField("latitude", FloatType(), False),
-        StructField("longitude", FloatType(), False),
-        StructField("picture", BinaryType(), False)
+        StructField("LCLid", StringType(), False),
+        StructField("stdorToU", StringType(), False),
+        StructField("Acorn", StringType(), False),
+        StructField("Acorn_grouped", StringType(), False),
+        StructField("tstp", StringType(), False),
+        StructField("energy_kWh", FloatType(), False)
     ])
 
     transformed_df = df.selectExpr("CAST(value AS STRING)") \
