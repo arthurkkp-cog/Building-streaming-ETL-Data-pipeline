@@ -13,8 +13,8 @@ logging.basicConfig(level=logging.INFO,
                     format='%(asctime)s:%(funcName)s:%(levelname)s:%(message)s')
 logger = logging.getLogger("smart_meter_streaming")
 
-KAFKA_BOOTSTRAP_SERVERS = ['kafka_broker_1:19092',
-                           'kafka_broker_2:19093', 'kafka_broker_3:19094']
+KAFKA_BOOTSTRAP_SERVERS = ['broker-1:9092',
+                           'broker-2:9093', 'broker-3:9094']
 KAFKA_TOPIC = "smart-meter-topic"
 PAUSE_INTERVAL = 1
 STREAMING_DURATION = 300

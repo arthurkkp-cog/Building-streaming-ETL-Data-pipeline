@@ -7,14 +7,18 @@ echo "=== Smart Meter Spark Processing Pipeline ==="
 echo "Copying smart meter processing application to Spark container..."
 
 # Copy the smart meter processing script to the Spark container
-docker cp ../spark_app/smart_meter_processing.py spark_master:/opt/bitnami/spark/
+docker cp ../spark_app/smart_meter_processing.py spark_master:/opt/spark/
 
 echo "Submitting Spark application..."
 
-# Submit the Spark application with all required JAR dependencies
-docker exec spark_master /opt/bitnami/spark/bin/spark-submit \
+# Set environment variables for Minio credentials
+export MINIO_ACCESS_KEY=MINIOAIRFLOW01
+export MINIO_SECRET_KEY=AIRFLOW123
+
+# Submit the Spark application with Kafka packages
+docker exec -e MINIO_ACCESS_KEY=MINIOAIRFLOW01 -e MINIO_SECRET_KEY=AIRFLOW123 spark_master /opt/spark/bin/spark-submit \
     --master local[2] \
-    --jars /opt/bitnami/spark/jars/hadoop-aws-3.2.0.jar,/opt/bitnami/spark/jars/aws-java-sdk-s3-1.11.375.jar,/opt/bitnami/spark/jars/aws-java-sdk-core-1.11.375.jar,/opt/bitnami/spark/jars/kafka-clients-7.7.0-ce.jar,/opt/bitnami/spark/jars/spark-sql-kafka-0-10_2.12-3.3.0.jar,/opt/bitnami/spark/jars/spark-streaming_2.12-3.3.0.jar,/opt/bitnami/spark/jars/commons-pool2-2.11.0.jar,/opt/bitnami/spark/jars/spark-token-provider-kafka-0-10_2.12-3.3.0.jar \
-    /opt/bitnami/spark/smart_meter_processing.py
+    --packages org.apache.spark:spark-sql-kafka-0-10_2.12:3.4.0,org.apache.hadoop:hadoop-aws:3.3.4,com.amazonaws:aws-java-sdk-bundle:1.12.262 \
+    /opt/spark/smart_meter_processing.py
 
 echo "=== Spark job completed ==="
