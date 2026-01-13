@@ -1,56 +1,59 @@
 import uuid
+import random
 from datetime import datetime, timedelta
 from airflow import DAG
 from airflow.operators.python_operator import PythonOperator
-import requests
 import json
 import time
-import hashlib
 from confluent_kafka import Producer
 import logging
 
-# Constants and configuration
-API_ENDPOINT = "https://randomuser.me/api/?results=1"
 KAFKA_BOOTSTRAP_SERVERS = ['kafka_broker_1:19092',
                            'kafka_broker_2:19093', 'kafka_broker_3:19094']
 KAFKA_TOPIC = "streaming-topic"
 PAUSE_INTERVAL = 10
 STREAMING_DURATION = 120
 
+SAMPLE_HOUSEHOLDS = [
+    {"LCLid": "MAC000002", "stdorToU": "Std", "Acorn": "ACORN-A", "Acorn_grouped": "Affluent"},
+    {"LCLid": "MAC000246", "stdorToU": "Std", "Acorn": "ACORN-A", "Acorn_grouped": "Affluent"},
+    {"LCLid": "MAC000387", "stdorToU": "Std", "Acorn": "ACORN-B", "Acorn_grouped": "Affluent"},
+    {"LCLid": "MAC001074", "stdorToU": "ToU", "Acorn": "ACORN-E", "Acorn_grouped": "Comfortable"},
+    {"LCLid": "MAC003613", "stdorToU": "Std", "Acorn": "ACORN-Q", "Acorn_grouped": "Adversity"},
+    {"LCLid": "MAC004387", "stdorToU": "Std", "Acorn": "ACORN-A", "Acorn_grouped": "Affluent"},
+    {"LCLid": "MAC005492", "stdorToU": "ToU", "Acorn": "ACORN-E", "Acorn_grouped": "Comfortable"},
+]
 
-def get_user_data(url=API_ENDPOINT) -> dict:
-    """Fetches random user data from the provided API endpoint."""
-    resp = requests.get(url)
-    if resp.status_code == 200:
-        return resp.json()["results"][0]
 
+def generate_smart_meter_reading() -> dict:
+    """Generates a simulated smart meter reading for London households."""
+    household = random.choice(SAMPLE_HOUSEHOLDS)
+    current_time = datetime.utcnow()
+    half_hour_slot = current_time.replace(
+        minute=30 if current_time.minute >= 30 else 0,
+        second=0,
+        microsecond=0
+    )
+    hour = current_time.hour
+    if 6 <= hour < 9 or 17 <= hour < 21:
+        base_consumption = random.uniform(0.3, 1.2)
+    elif 9 <= hour < 17:
+        base_consumption = random.uniform(0.1, 0.4)
+    elif 21 <= hour < 24:
+        base_consumption = random.uniform(0.2, 0.6)
+    else:
+        base_consumption = random.uniform(0.05, 0.2)
 
-def format_user_data(data_from_api: dict) -> dict:
-    """Formats the fetched user data for Kafka streaming."""
-    dict_resp = {
-        "full_name": f"{data_from_api['name']['title']}. {data_from_api['name']['first']} {data_from_api['name']['last']}",
-        "gender": data_from_api["gender"],
-        "age": data_from_api['dob']["age"],
-        "address": f"{data_from_api['location']['street']['number']}, {data_from_api['location']['street']['name']}",
-        "city": data_from_api['location']['city'],
-        "email": data_from_api['email'],
-        "phone": data_from_api['phone'],
-        "nation": data_from_api['location']['country'],
-        "username": data_from_api['login']['username'],
-        "registered_date": data_from_api['registered']['date'],
-        "zip": encrypt_zip(data_from_api['location']['postcode']),
-        "latitude": float(data_from_api['location']['coordinates']['latitude']),
-        "longitude": float(data_from_api['location']['coordinates']['longitude']),
-        "picture": data_from_api['picture']['large']
+    energy_kwh = round(base_consumption * random.uniform(0.8, 1.2), 3)
+
+    return {
+        "LCLid": household["LCLid"],
+        "stdorToU": household["stdorToU"],
+        "Acorn": household["Acorn"],
+        "Acorn_grouped": household["Acorn_grouped"],
+        "tstp": half_hour_slot.strftime("%Y-%m-%d %H:%M:%S"),
+        "energy_kWh": energy_kwh
     }
-
-    return dict_resp
-
-
-def encrypt_zip(zip_code):
-    """Hashes the zip code using MD5 and returns its integer representation."""
-    zip_str = str(zip_code)
-    return int(hashlib.md5(zip_str.encode()).hexdigest(), 16)
 
 
 def configure_kafka(servers=KAFKA_BOOTSTRAP_SERVERS):
@@ -79,12 +82,11 @@ def delivery_status(err, msg):
 
 
 def initiate_stream():
-    """Initiates the process to stream user data to Kafka."""
+    """Initiates the process to stream smart meter data to Kafka."""
     kafka_producer = configure_kafka()
     for _ in range(STREAMING_DURATION // PAUSE_INTERVAL):
-        raw_data = get_user_data()
-        kafka_formatted_data = format_user_data(raw_data)
-        publish_to_kafka(kafka_producer, KAFKA_TOPIC, kafka_formatted_data)
+        smart_meter_data = generate_smart_meter_reading()
+        publish_to_kafka(kafka_producer, KAFKA_TOPIC, smart_meter_data)
         time.sleep(PAUSE_INTERVAL)
 
 
@@ -102,11 +104,11 @@ DAG_DEFAULT_ARGS = {
 
 # Creating the DAG with its configuration
 with DAG(
-    'streaming_etl_pepiline',
+    'london_smart_meters_etl_pipeline',
     default_args=DAG_DEFAULT_ARGS,
-    schedule_interval=timedelta(minutes=5), #'0 1 * * *',
+    schedule_interval=timedelta(minutes=5),
     catchup=False,
-    description='Stream random user names to Kafka topic',
+    description='Stream London smart meter energy consumption data to Kafka topic',
     max_active_runs=1
 ) as dag:
 
