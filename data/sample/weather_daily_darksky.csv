@@ -1,0 +1,8 @@
+time,summary,icon,sunriseTime,sunsetTime,moonPhase,precipIntensity,precipIntensityMax,precipProbability,precipType,temperatureHigh,temperatureHighTime,temperatureLow,temperatureLowTime,apparentTemperatureHigh,apparentTemperatureHighTime,apparentTemperatureLow,apparentTemperatureLowTime,dewPoint,humidity,pressure,windSpeed,windGust,windBearing,cloudCover,uvIndex,visibility,temperatureMin,temperatureMax
+2013-01-01,Light rain in the morning.,rain,2013-01-01 08:06:00,2013-01-01 16:02:00,0.62,0.35,1.2,0.85,rain,7.5,14,3.8,5,5.5,14,1.0,5,3.2,0.85,1014.2,7.8,15.2,225,0.72,3,8.5,3.8,7.5
+2013-01-02,Partly cloudy throughout the day.,partly-cloudy-day,2013-01-02 08:06:00,2013-01-02 16:03:00,0.66,0.0,0.0,0.0,,8.2,13,2.5,6,6.2,13,0.2,6,2.8,0.78,1018.5,5.5,12.0,180,0.45,3,10.0,2.5,8.2
+2013-01-03,Clear throughout the day.,clear-day,2013-01-03 08:06:00,2013-01-03 16:04:00,0.70,0.0,0.0,0.0,,9.5,14,1.2,5,7.8,14,-1.0,5,1.5,0.72,1022.0,3.2,8.5,160,0.15,4,10.0,1.2,9.5
+2013-01-04,Overcast throughout the day.,cloudy,2013-01-04 08:05:00,2013-01-04 16:05:00,0.74,0.0,0.0,0.0,,6.8,12,3.5,4,4.5,12,1.2,4,3.8,0.88,1015.2,8.2,18.5,245,0.92,2,10.0,3.5,6.8
+2013-01-05,Rain throughout the day.,rain,2013-01-05 08:05:00,2013-01-05 16:06:00,0.78,0.85,2.5,0.95,rain,5.5,11,4.2,3,3.0,11,1.8,3,4.5,0.95,1008.5,12.5,25.0,265,0.98,1,4.5,4.2,5.5
+2013-01-06,Light rain in the afternoon.,rain,2013-01-06 08:05:00,2013-01-06 16:07:00,0.82,0.25,0.8,0.55,rain,7.2,14,3.0,6,5.0,14,0.5,6,3.2,0.82,1012.0,6.8,14.0,210,0.65,2,8.0,3.0,7.2
+2013-01-07,Partly cloudy throughout the day.,partly-cloudy-day,2013-01-07 08:04:00,2013-01-07 16:09:00,0.86,0.0,0.0,0.0,,8.8,13,2.0,5,6.8,13,-0.2,5,2.2,0.75,1020.5,4.5,10.5,175,0.38,3,10.0,2.0,8.8
