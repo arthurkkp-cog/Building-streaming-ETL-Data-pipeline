@@ -2,3 +2,6 @@ confluent-kafka
 requests
 json5
 pyspark
+google-cloud-bigquery
+pandas
+pyarrow
