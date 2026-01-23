@@ -1,5 +1,6 @@
 # Building-streaming-ETL-Data-pipeline
 
+<!-- Dummy test change for PR verification -->
 
 ![GitHub](https://img.shields.io/github/license/fermat01/Building-streaming-Data-pipeline?style=flat)
 ![GitHub top language](https://img.shields.io/github/languages/top/fermat01/Building-streaming-Data-pipeline?style=flat)
